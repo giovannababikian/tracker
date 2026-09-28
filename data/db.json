@@ -1,0 +1,22 @@
+{
+  "users": {
+    "user_gbcosta": {
+      "id": "user_gbcosta",
+      "username": "gbcosta",
+      "password": "123",
+      "name": "GB Costa",
+      "email": "gbcosta.ct@gmail.com",
+      "createdAt": "2026-09-28T19:29:04.029Z",
+      "data": {
+        "activities": [],
+        "workouts": {},
+        "completions": {},
+        "workoutLogs": {},
+        "activityNotes": {}
+      }
+    }
+  },
+  "sessions": {
+    "token_1790623750865_bqaaip6": "user_gbcosta"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Habit & Workout Tracker",
+  "description": "Rastreador inteligente de hábitos, rotina e treinos com suporte multiusuário, visão diária e semanal, painéis laterais de treino e notas detalhadas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
