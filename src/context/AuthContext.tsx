@@ -125,6 +125,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (username: string, password: string) => {
+    const cleanUser = username.trim().toLowerCase();
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -132,19 +133,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || 'Falha no login' };
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+        setToken(data.token);
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(data.user));
+        localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, data.token);
+        return { success: true };
       }
-
-      setUser(data.user);
-      setToken(data.token);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(data.user));
-      localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, data.token);
-      return { success: true };
+      
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 || res.status === 400) {
+        return { success: false, error: data.error || 'Credenciais inválidas' };
+      }
+      throw new Error(data.error || 'API indisponível');
     } catch (e: any) {
-      // Local fallback for client-side resiliency
-      if (username.toLowerCase() === 'gbcosta' && (password === '123' || password === 'senha123')) {
+      // Local fallback for static hosting (Netlify / GitHub Pages)
+      if (cleanUser === 'gbcosta' && (password === '123' || password === 'senha123')) {
         const fallbackUser: UserProfile = { ...DEFAULT_INITIAL_USER };
         setUser(fallbackUser);
         setToken('token_fallback');
@@ -152,11 +157,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, 'token_fallback');
         return { success: true };
       }
-      return { success: false, error: 'Erro de conexão ou credenciais inválidas' };
+
+      try {
+        const localAccounts = JSON.parse(localStorage.getItem('ht_local_accounts') || '{}');
+        if (localAccounts[cleanUser] && localAccounts[cleanUser].password === password) {
+          const userRec = localAccounts[cleanUser].user;
+          setUser(userRec);
+          setToken(`token_local_${cleanUser}`);
+          localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userRec));
+          localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, `token_local_${cleanUser}`);
+          return { success: true };
+        }
+      } catch (err) {}
+
+      return { success: false, error: 'Usuário ou senha incorretos' };
     }
   };
 
   const register = async (username: string, password: string, name?: string, email?: string) => {
+    const cleanUser = username.trim().toLowerCase();
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -164,18 +183,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         body: JSON.stringify({ username, password, name, email }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || 'Falha ao cadastrar usuário' };
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+        setToken(data.token);
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(data.user));
+        localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, data.token);
+        return { success: true };
       }
 
-      setUser(data.user);
-      setToken(data.token);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(data.user));
-      localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, data.token);
-      return { success: true };
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 || res.status === 400) {
+        return { success: false, error: data.error || 'Erro no cadastro' };
+      }
+      throw new Error(data.error || 'API indisponível');
     } catch (e: any) {
-      return { success: false, error: 'Erro ao conectar ao servidor de cadastro' };
+      // Local fallback for Netlify static deployment
+      try {
+        const localAccounts = JSON.parse(localStorage.getItem('ht_local_accounts') || '{}');
+        if (cleanUser === 'gbcosta' || localAccounts[cleanUser]) {
+          return { success: false, error: 'Nome de usuário já existe' };
+        }
+        const newUser: UserProfile = {
+          id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          username: cleanUser,
+          name: (name || cleanUser).trim(),
+          email: (email || '').trim(),
+          createdAt: new Date().toISOString(),
+          theme,
+        };
+        localAccounts[cleanUser] = { user: newUser, password };
+        localStorage.setItem('ht_local_accounts', JSON.stringify(localAccounts));
+        setUser(newUser);
+        setToken(`token_local_${cleanUser}`);
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(newUser));
+        localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, `token_local_${cleanUser}`);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: 'Erro ao criar conta offline' };
+      }
     }
   };
 
